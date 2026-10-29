@@ -1,3 +1,4 @@
+
 module prog_mem #(
     parameter WIDTH = 8,
     parameter WORD_SIZE = 8
