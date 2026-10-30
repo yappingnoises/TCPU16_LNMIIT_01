@@ -9,6 +9,25 @@ module toy_cpu16(
     output wire [7:0] acc_out
 );
 
+/*-----------------------------------------------------------------------
+    Mode O input synchronizers (SYNC_STAGES = 2)
+    Two-flop synchronizers for run, prog_load and rst_n.
+    No reset, no logic between stages (spec 4.2).
+    prog_data and byte_sel are NOT synchronized:
+    - prog_data is held stable by the load protocol (spec 2.1)
+    - byte_sel is combinational only and never sampled by a flop
+----------------------------------------------------------------------- */
+
+reg run_s1,      run_sync;
+reg pl_s1,       pl_sync;
+reg rst_s1,      rst_sync;
+
+always @(posedge clk) begin
+    run_s1   <= run;       run_sync  <= run_s1;
+    pl_s1    <= prog_load; pl_sync   <= pl_s1;
+    rst_s1   <= rst_n;     rst_sync  <= rst_s1;
+end
+
 /*A == declared for verification visibility*/
 reg [2:0] pc; //current pointer of program counter
 reg [15:0] acc; //accumulator register
@@ -30,15 +49,15 @@ wire alu_halted; //ALU halt detected
 wire [7:0] ir_val; //IR registered instruction
 
 
-assign execute = run & ~halted;
+assign execute = run_sync & ~halted;
 
 //B
 
 prog_loader u_prog_loader (
     .clk(clk),
-    .rst_n(rst_n),
-    .i_prog_load(prog_load),
-    .i_run(run),
+    .rst_n(rst_sync),
+    .i_prog_load(pl_sync),
+    .i_run(run_sync),
     .o_load_addr(load_addr),
     .o_write_en(write_en)
 );
@@ -57,7 +76,7 @@ prog_mem #(
 
 IR u_IR (
     .clk(clk),
-    .rst_n(rst_n),
+    .rst_n(rst_sync),
     .i_instr(instr),
     .i_execute(execute),
     .o_ir(ir_val)
@@ -75,7 +94,7 @@ ALU u_ALU (
 
 PC u_PC (
     .clk(clk),
-    .rst_n(rst_n),
+    .rst_n(rst_sync),
     .i_jump_en(jump_en),
     .i_en(execute),
     .i_jump_addr(jump_addr),
@@ -83,7 +102,7 @@ PC u_PC (
 ); //B
 
 always @(posedge clk) begin
-    if(!rst_n) begin
+    if(!rst_sync) begin
         acc    <= 16'h0000;
         pc     <= 3'b000;
         ir     <= 8'h00;

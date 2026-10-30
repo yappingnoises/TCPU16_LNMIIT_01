@@ -23,6 +23,8 @@ module prog_loader(
 
 reg pl_q;
 
+// pl_q has NO reset: it must sample prog_load at every edge including
+// during reset (spec 4.2). rst_n here is already the synchronized signal.
 always @(posedge clk) begin
     pl_q <= i_prog_load;
 end
